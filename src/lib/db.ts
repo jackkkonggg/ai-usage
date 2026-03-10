@@ -1,15 +1,19 @@
 import Database from 'better-sqlite3'
-import { mkdirSync, statSync, unlinkSync } from 'fs'
+import { mkdirSync, readFileSync, statSync, unlinkSync } from 'fs'
 import { globSync } from 'glob'
-import { join } from 'path'
-import {
-  CLAUDE_DIR,
-  CODEX_DIR,
-  type Turn,
-  parseClaudeFile,
-  parseCodexFile,
-  daysAgoStr,
-} from './parser'
+import { join, basename } from 'path'
+import { ClaudeParser } from '@/lib/parsers/claude-parser'
+import { CodexParser } from '@/lib/parsers/codex-parser'
+import type { SessionParser } from '@/lib/parsers/session-parser'
+import type { Turn } from '@/lib/parsers/session-parser'
+import { daysAgoStr } from '@/lib/format'
+
+const parsers: Record<string, SessionParser> = {
+  claude: new ClaudeParser(),
+  codex: new CodexParser(),
+}
+const CLAUDE_DIR = parsers.claude.sessionDir
+const CODEX_DIR = parsers.codex.sessionDir
 
 // ─── Database Setup ─────────────────────────────────────────────────────────
 
@@ -199,24 +203,10 @@ function syncFiles(): void {
       deleteGlm.run(filePath)
       deleteTurns.run(filePath)
 
-      let turns: Turn[]
-      let glmSessionIds: string[]
-      let project: string | null = null
-      let description: string | null = null
-      if (source === 'claude') {
-        const result = parseClaudeFile(filePath)
-        turns = result.turns
-        glmSessionIds = result.glmSessionIds
-        description = result.description
-      } else {
-        const result = parseCodexFile(filePath)
-        turns = result.turns
-        glmSessionIds = []
-        project = result.project
-        description = result.description
-      }
+      const parser = parsers[source]
+      const result = parser.parseFile(filePath)
 
-      for (const t of turns) {
+      for (const t of result.turns) {
         insertTurn.run(
           t.source,
           t.sessionId,
@@ -233,12 +223,23 @@ function syncFiles(): void {
       }
 
       // Store session metadata for all sessions (description, project)
-      if (turns.length > 0) {
-        upsertSessionMeta.run(turns[0].sessionId, source, project, description)
+      if (result.turns.length > 0) {
+        upsertSessionMeta.run(result.turns[0].sessionId, source, result.project, result.description)
       }
 
-      for (const sid of glmSessionIds) {
-        insertGlm.run(sid, filePath)
+      // GLM detection: scan Claude files for glm-prefixed models
+      if (source === 'claude') {
+        const raw = readFileSync(filePath, 'utf-8')
+        for (const line of raw.split('\n')) {
+          if (!line.trim()) continue
+          try {
+            const obj = JSON.parse(line)
+            if (obj.type === 'assistant' && obj.message?.model?.startsWith('glm')) {
+              insertGlm.run(result.turns[0]?.sessionId ?? basename(filePath, '.jsonl'), filePath)
+              break
+            }
+          } catch { /* skip */ }
+        }
       }
 
       upsertTracked.run(filePath, source, Math.floor(st.mtimeMs), st.size)

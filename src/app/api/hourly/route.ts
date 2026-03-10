@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { getStatsCache, clearStatsCache } from '@/lib/parser'
+import { getStatsCache, clearStatsCache } from '@/lib/stats-cache'
 
 export const dynamic = 'force-dynamic'
 

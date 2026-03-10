@@ -1,5 +1,10 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { CLAUDE_DIR, CODEX_DIR, getStatsCache, clearStatsCache } from '@/lib/parser'
+import { ClaudeParser } from '@/lib/parsers/claude-parser'
+import { CodexParser } from '@/lib/parsers/codex-parser'
+import { getStatsCache, clearStatsCache } from '@/lib/stats-cache'
+
+const CLAUDE_DIR = new ClaudeParser().sessionDir
+const CODEX_DIR = new CodexParser().sessionDir
 import { querySummary, forceSync } from '@/lib/db'
 import { existsSync } from 'fs'
 

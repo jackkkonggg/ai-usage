@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { getHistory } from '@/lib/parser'
+import { getHistory } from '@/lib/stats-cache'
 import { queryCodexProjects, getGlmSessionIdsFromDb, getKnownSessionIds, forceSync } from '@/lib/db'
 import { basename } from 'path'
 

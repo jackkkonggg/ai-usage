@@ -53,6 +53,10 @@ export const shortModel = (m: string) => {
   return MODEL_DISPLAY.find(([sub]) => m.includes(sub))?.[1] ?? m.split('-').slice(0, 2).join('-')
 }
 
+export function daysAgoStr(n: number) {
+  return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10)
+}
+
 export const fmtSessionDate = (date: string, ts?: number) => {
   if (!ts) return shortDate(date)
   const d = new Date(ts)

@@ -7,7 +7,7 @@ Local Next.js dashboard for **Claude Code** + **OpenAI Codex** token usage and c
 ```bash
 pnpm install
 pnpm dev
-# → http://localhost:3000
+# → http://localhost:3005
 ```
 
 ## Tech stack
@@ -24,7 +24,11 @@ src/
 │   ├── layout.tsx
 │   ├── page.tsx
 │   ├── dashboard.tsx          # 'use client' main dashboard
+│   ├── dashboard-charts.tsx   # chart panels
+│   ├── dashboard-panels.tsx   # stat card panels
+│   ├── dashboard-sessions.tsx # recent sessions panel
 │   ├── globals.css
+│   ├── icon.svg
 │   ├── day/[date]/
 │   │   ├── page.tsx
 │   │   ├── day-detail.tsx     # day detail page shell
@@ -46,8 +50,13 @@ src/
 │   ├── loader.tsx
 │   └── ui/tooltip.tsx
 └── lib/
-    ├── parser.ts              # JSONL parsers + pricing engine
+    ├── parsers/
+    │   ├── claude-parser.ts   # Claude Code JSONL parser
+    │   ├── codex-parser.ts    # OpenAI Codex JSONL parser
+    │   ├── pricing.ts         # pricing engine (PRICES map)
+    │   └── session-parser.ts  # shared session parsing
     ├── db.ts                  # SQLite sync + query helpers
+    ├── stats-cache.ts         # in-memory stats cache
     ├── types.ts
     ├── format.ts
     └── design-tokens.ts
@@ -64,7 +73,7 @@ On first load, all JSONL files are parsed and written into `.cache/usage.db`. Su
 
 ## Pricing
 
-Edit the `PRICES` map in `src/lib/parser.ts` to update rates (per million tokens, USD). Unknown models fall back to `claude-sonnet-4` pricing.
+Edit the `PRICES` map in `src/lib/parsers/pricing.ts` to update rates (per million tokens, USD). Unknown models fall back to `claude-sonnet-4` pricing.
 
 ## Cache
 

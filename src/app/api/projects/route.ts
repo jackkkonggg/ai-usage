@@ -1,11 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { getHistory } from '@/lib/parser'
-import { queryCodexProjects, getGlmSessionIdsFromDb, getKnownSessionIds } from '@/lib/db'
+import { queryCodexProjects, getGlmSessionIdsFromDb, getKnownSessionIds, forceSync } from '@/lib/db'
 import { basename } from 'path'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (req.nextUrl.searchParams.get('force') === 'true') forceSync()
   const grouped: Record<
     string,
     {

@@ -243,6 +243,10 @@ let statsCacheData: StatsCache | null = null
 let statsCacheTime = 0
 const TTL = 30_000
 
+export function clearStatsCache(): void {
+  statsCacheTime = 0
+}
+
 export function getStatsCache(): StatsCache | null {
   const now = Date.now()
   if (statsCacheData && now - statsCacheTime < TTL) return statsCacheData

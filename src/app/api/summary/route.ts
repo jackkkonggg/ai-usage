@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server'
-import { CLAUDE_DIR, CODEX_DIR, getStatsCache } from '@/lib/parser'
-import { querySummary } from '@/lib/db'
+import { NextResponse, NextRequest } from 'next/server'
+import { CLAUDE_DIR, CODEX_DIR, getStatsCache, clearStatsCache } from '@/lib/parser'
+import { querySummary, forceSync } from '@/lib/db'
 import { existsSync } from 'fs'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (req.nextUrl.searchParams.get('force') === 'true') {
+    forceSync()
+    clearStatsCache()
+  }
   const summary = querySummary()
   const sc = getStatsCache()
 

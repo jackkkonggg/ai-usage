@@ -103,6 +103,11 @@ let lastSyncTime = 0
 let syncing = false
 const MIN_SYNC_INTERVAL = 10_000
 
+export function forceSync(): void {
+  lastSyncTime = 0
+  ensureSync()
+}
+
 export function ensureSync(): void {
   const now = Date.now()
   if (now - lastSyncTime < MIN_SYNC_INTERVAL) return

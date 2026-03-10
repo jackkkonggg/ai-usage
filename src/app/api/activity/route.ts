@@ -1,9 +1,10 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { getStatsCache, daysAgoStr } from '@/lib/parser'
+import { getStatsCache, clearStatsCache, daysAgoStr } from '@/lib/parser'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
+  if (req.nextUrl.searchParams.get('force') === 'true') clearStatsCache()
   const days = Math.min(90, Math.max(1, parseInt(req.nextUrl.searchParams.get('days') ?? '30')))
   const sc = getStatsCache()
   const activity = sc?.dailyActivity ?? []

@@ -382,17 +382,18 @@ export default function Dashboard() {
   const [chartTab, setChartTab] = useState<'cost' | 'activity'>('cost')
 
   const fetchAll = useCallback(
-    async (days = range) => {
+    async (days = range, force = false) => {
       setRefreshing(true)
+      const f = force ? '&force=true' : ''
       try {
         const [s, d, sess, m, h, p, a] = await Promise.all([
-          fetch('/api/summary').then((r) => r.json()),
-          fetch(`/api/daily?days=${days}`).then((r) => r.json()),
-          fetch('/api/sessions').then((r) => r.json()),
-          fetch('/api/models').then((r) => r.json()),
-          fetch('/api/hourly').then((r) => r.json()),
-          fetch('/api/projects').then((r) => r.json()),
-          fetch(`/api/activity?days=${days}`).then((r) => r.json()),
+          fetch(`/api/summary?${f}`).then((r) => r.json()),
+          fetch(`/api/daily?days=${days}${f}`).then((r) => r.json()),
+          fetch(`/api/sessions?${f}`).then((r) => r.json()),
+          fetch(`/api/models?${f}`).then((r) => r.json()),
+          fetch(`/api/hourly?${f}`).then((r) => r.json()),
+          fetch(`/api/projects?${f}`).then((r) => r.json()),
+          fetch(`/api/activity?days=${days}${f}`).then((r) => r.json()),
         ])
         setSummary(s)
         setDaily(d)
@@ -505,7 +506,7 @@ export default function Dashboard() {
           </div>
         </div>
         <button
-          onClick={() => fetchAll()}
+          onClick={() => fetchAll(range, true)}
           disabled={refreshing}
           style={{
             background: 'transparent',
@@ -516,9 +517,13 @@ export default function Dashboard() {
             cursor: refreshing ? 'default' : 'pointer',
             fontSize: 13,
             fontFamily: C.sans,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
-          {refreshing ? 'refreshing…' : '↻  Refresh'}
+          <span className={refreshing ? 'spin' : undefined}>↻</span>
+          Refresh
         </button>
       </div>
 

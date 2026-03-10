@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
-import { getStatsCache } from '@/lib/parser'
+import { NextResponse, NextRequest } from 'next/server'
+import { getStatsCache, clearStatsCache } from '@/lib/parser'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +30,8 @@ const LABELS = [
   '11p',
 ]
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (req.nextUrl.searchParams.get('force') === 'true') clearStatsCache()
   const sc = getStatsCache()
   const hourCounts = sc?.hourCounts ?? {}
 

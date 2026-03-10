@@ -1,0 +1,34 @@
+services:
+  ai-usage:
+    build: .
+    ports:
+      - "4005:4005"
+    volumes:
+      # Read-only: Claude Code session logs
+      - type: bind
+        source: ${HOME}/.claude/projects
+        target: /app/.claude/projects
+        read_only: true
+      # Read-only: Claude activity cache & history
+      - type: bind
+        source: ${HOME}/.claude/stats-cache.json
+        target: /app/.claude/stats-cache.json
+        read_only: true
+        # Note: this file may not exist on first run; create it first:
+        # touch ~/.claude/stats-cache.json
+      - type: bind
+        source: ${HOME}/.claude/history.jsonl
+        target: /app/.claude/history.jsonl
+        read_only: true
+        # Note: this file may not exist on first run; create it first:
+        # touch ~/.claude/history.jsonl
+      # Read-only: Codex session logs (optional — remove if not used)
+      - type: bind
+        source: ${HOME}/.codex/sessions
+        target: /app/.codex/sessions
+        read_only: true
+      # Read-write: SQLite database cache
+      - type: bind
+        source: ./.cache
+        target: /app/.cache
+    restart: unless-stopped

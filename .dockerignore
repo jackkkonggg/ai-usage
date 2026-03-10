@@ -1,0 +1,11 @@
+.next
+.cache
+node_modules
+*.md
+.git
+.gitignore
+.prettierrc
+.nvmrc
+.node-version
+docker-compose.yml
+Dockerfile

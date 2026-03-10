@@ -20,8 +20,8 @@
   --color-muted: #444444;
 
   /* ── Typography ──────────────────────────────────────────────── */
-  --font-sans: 'Outfit', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: var(--font-outfit), sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
 }
 
 *,

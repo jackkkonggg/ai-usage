@@ -664,41 +664,4 @@ export function getKnownSessionIds(): Set<string> {
   return new Set(rows.map((r) => r.session_id))
 }
 
-export function getAllTurnsFromDb(): Turn[] {
-  ensureSync()
-  const db = getDb()
-  const rows = db
-    .prepare(
-      `
-    SELECT source, session_id, date, timestamp, model,
-      input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd
-    FROM turns
-    ORDER BY timestamp
-  `,
-    )
-    .all() as Array<{
-    source: 'claude' | 'codex'
-    session_id: string
-    date: string
-    timestamp: number
-    model: string
-    input_tokens: number
-    output_tokens: number
-    cache_read_tokens: number
-    cache_write_tokens: number
-    cost_usd: number
-  }>
 
-  return rows.map((r) => ({
-    source: r.source,
-    sessionId: r.session_id,
-    date: r.date,
-    timestamp: r.timestamp,
-    model: r.model,
-    inputTokens: r.input_tokens,
-    outputTokens: r.output_tokens,
-    cacheReadTokens: r.cache_read_tokens,
-    cacheWriteTokens: r.cache_write_tokens,
-    costUsd: r.cost_usd,
-  }))
-}

@@ -65,10 +65,3 @@ export const fmtSessionDate = (date: string, ts?: number) => {
   return `${MONTHS[parseInt(m)]} ${parseInt(day)} · ${h12}:${minStr}${ampm}`
 }
 
-export const fmtTimeSaved = (ms: number) => {
-  if (ms <= 0) return '—'
-  const totalMin = Math.floor(ms / 60_000)
-  const h = Math.floor(totalMin / 60)
-  const m = totalMin % 60
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
-}

@@ -86,7 +86,7 @@ export function ModelBreakdownChart({ models }: { models: ModelStat[] }) {
             <CartesianGrid horizontal={false} stroke={C.border} />
             <XAxis
               type="number"
-              tick={{ fill: C.muted, fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}
+              tick={{ fill: C.muted, fontSize: 11, fontFamily: C.mono }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => (v === 0 ? '' : `$${v.toFixed(2)}`)}
@@ -94,15 +94,15 @@ export function ModelBreakdownChart({ models }: { models: ModelStat[] }) {
             <YAxis
               type="category"
               dataKey="name"
-              tick={{ fill: C.textDim, fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}
+              tick={{ fill: C.textDim, fontSize: 12, fontFamily: C.mono }}
               axisLine={false}
               tickLine={false}
               width={100}
             />
             <Tooltip content={<ModelTooltip />} cursor={{ fill: 'rgba(255,255,255,0.025)' }} />
             <Bar dataKey="cost" radius={[0, 4, 4, 0]}>
-              {chartData.map((entry, i) => (
-                <Cell key={i} fill={entry.source === 'claude' ? C.orange : C.emerald} />
+              {chartData.map((entry) => (
+                <Cell key={entry.name} fill={entry.source === 'claude' ? C.orange : C.emerald} />
               ))}
             </Bar>
           </BarChart>
@@ -143,14 +143,14 @@ export function HourlyChart({ hourly }: { hourly: HourlyEntry[] }) {
           <CartesianGrid vertical={false} stroke={C.border} />
           <XAxis
             dataKey="label"
-            tick={{ fill: C.muted, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
+            tick={{ fill: C.muted, fontSize: 10, fontFamily: C.mono }}
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
             ticks={['12a', '6a', '12p', '6p']}
           />
           <YAxis
-            tick={{ fill: C.muted, fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}
+            tick={{ fill: C.muted, fontSize: 11, fontFamily: C.mono }}
             axisLine={false}
             tickLine={false}
             width={32}

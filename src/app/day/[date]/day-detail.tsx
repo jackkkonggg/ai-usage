@@ -1,6 +1,5 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { C } from '@/lib/design-tokens'
 import { fmt$, fmtTokens } from '@/lib/format'
@@ -8,7 +7,6 @@ import type { DayDetail as DayDetailType } from '@/lib/types'
 import { StatCard } from '@/components/stat-card'
 import { ModelBreakdownChart, HourlyChart, TokenBreakdownChart } from './day-charts'
 import { DaySessions } from './day-sessions'
-import { FullPageLoader } from '@/components/loader'
 
 function formatFullDate(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -20,65 +18,8 @@ function formatFullDate(dateStr: string) {
   })
 }
 
-export default function DayDetail({ date }: { date: string }) {
+export default function DayDetail({ date, data }: { date: string; data: DayDetailType }) {
   const router = useRouter()
-  const [data, setData] = useState<DayDetailType | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      setError('Invalid date format')
-      setLoading(false)
-      return
-    }
-    fetch(`/api/day/${date}`)
-      .then((r) => {
-        if (!r.ok) throw new Error('Failed to load')
-        return r.json()
-      })
-      .then(setData)
-      .catch(() => setError('Failed to load day data'))
-      .finally(() => setLoading(false))
-  }, [date])
-
-  if (loading) {
-    return <FullPageLoader message="loading…" />
-  }
-
-  if (error || !data) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-      >
-        <div style={{ color: C.textDim, fontFamily: C.mono, fontSize: 14 }}>
-          {error ?? 'No data found'}
-        </div>
-        <button
-          onClick={() => router.push('/')}
-          style={{
-            background: 'transparent',
-            border: `1px solid ${C.border}`,
-            color: C.textDim,
-            padding: '8px 18px',
-            borderRadius: 7,
-            cursor: 'pointer',
-            fontSize: 13,
-            fontFamily: C.sans,
-          }}
-        >
-          Back to Dashboard
-        </button>
-      </div>
-    )
-  }
 
   const { summary: s, sources } = data
   const claudeSrc = sources.find((src) => src.source === 'claude')

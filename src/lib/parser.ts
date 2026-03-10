@@ -57,7 +57,7 @@ function getPrice(model: string) {
   return key ? PRICES[key] : PRICES['claude-sonnet-4']
 }
 
-export function calcCost(
+function calcCost(
   model: string,
   input: number,
   output: number,
@@ -227,10 +227,6 @@ export function parseCodexFile(filePath: string): {
   return { turns, project, description }
 }
 
-// ─── Backward-compatible exports (now backed by SQLite) ─────────────────────
-
-export { getAllTurnsFromDb as getAllTurns, getGlmSessionIdsFromDb as getGlmSessionIds } from './db'
-
 export function daysAgoStr(n: number) {
   return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10)
 }
@@ -240,7 +236,7 @@ export function daysAgoStr(n: number) {
 export const STATS_CACHE_PATH = join(homedir(), '.claude', 'stats-cache.json')
 export const HISTORY_PATH = join(homedir(), '.claude', 'history.jsonl')
 
-export interface StatsCache {
+interface StatsCache {
   dailyActivity: Array<{
     date: string
     messageCount: number

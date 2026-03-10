@@ -13,6 +13,6 @@ export const C = {
   text: '#e8e8e8',
   textDim: '#999',
   muted: '#444',
-  mono: "'JetBrains Mono', monospace",
-  sans: "'Outfit', sans-serif",
+  mono: 'var(--font-mono)',
+  sans: 'var(--font-sans)',
 }

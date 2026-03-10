@@ -40,10 +40,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4005
 
-# better-sqlite3 requires python/make/g++ at runtime only for native rebuild;
-# the binary compiled in builder stage is copied directly so no build tools needed.
-# sqlite3 needs libstdc++ on alpine.
-RUN apk add --no-cache libc6-compat
+# better-sqlite3 is a C++ native module; it needs libstdc++ and glibc compat at runtime.
+RUN apk add --no-cache libc6-compat libstdc++
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --home /app nextjs && \

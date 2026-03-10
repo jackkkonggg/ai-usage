@@ -6,9 +6,15 @@ import { basename } from 'path'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const grouped: Record<string, {
-    sessionCount: number; messageCount: number; turnCount: number; lastTs: number
-  }> = {}
+  const grouped: Record<
+    string,
+    {
+      sessionCount: number
+      messageCount: number
+      turnCount: number
+      lastTs: number
+    }
+  > = {}
 
   // Claude projects from history.jsonl
   const entries = getHistory()

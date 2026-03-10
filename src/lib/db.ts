@@ -2,11 +2,18 @@ import Database from 'better-sqlite3'
 import { mkdirSync, statSync, unlinkSync } from 'fs'
 import { globSync } from 'glob'
 import { join } from 'path'
-import { CLAUDE_DIR, CODEX_DIR, type Turn, parseClaudeFile, parseCodexFile, daysAgoStr } from './parser'
+import {
+  CLAUDE_DIR,
+  CODEX_DIR,
+  type Turn,
+  parseClaudeFile,
+  parseCodexFile,
+  daysAgoStr,
+} from './parser'
 
 // ─── Database Setup ─────────────────────────────────────────────────────────
 
-const DB_DIR  = join(process.cwd(), '.cache')
+const DB_DIR = join(process.cwd(), '.cache')
 const DB_PATH = join(DB_DIR, 'usage.db')
 const SCHEMA_VERSION = 3
 
@@ -23,9 +30,21 @@ function getDb(): Database.Database {
   const currentVersion = (db.pragma('user_version', { simple: true }) as number) ?? 0
   if (currentVersion !== SCHEMA_VERSION) {
     db.close()
-    try { unlinkSync(DB_PATH) } catch { /* ok */ }
-    try { unlinkSync(DB_PATH + '-wal') } catch { /* ok */ }
-    try { unlinkSync(DB_PATH + '-shm') } catch { /* ok */ }
+    try {
+      unlinkSync(DB_PATH)
+    } catch {
+      /* ok */
+    }
+    try {
+      unlinkSync(DB_PATH + '-wal')
+    } catch {
+      /* ok */
+    }
+    try {
+      unlinkSync(DB_PATH + '-shm')
+    } catch {
+      /* ok */
+    }
     db = new Database(DB_PATH)
   }
 
@@ -103,8 +122,16 @@ function syncFiles(): void {
   // Gather all JSONL files from both sources
   const claudeFiles: string[] = []
   const codexFiles: string[] = []
-  try { claudeFiles.push(...globSync(`${CLAUDE_DIR}/**/*.jsonl`, { nodir: true })) } catch { /* empty */ }
-  try { codexFiles.push(...globSync(`${CODEX_DIR}/**/*.jsonl`, { nodir: true })) } catch { /* empty */ }
+  try {
+    claudeFiles.push(...globSync(`${CLAUDE_DIR}/**/*.jsonl`, { nodir: true }))
+  } catch {
+    /* empty */
+  }
+  try {
+    codexFiles.push(...globSync(`${CODEX_DIR}/**/*.jsonl`, { nodir: true }))
+  } catch {
+    /* empty */
+  }
 
   const allFiles = new Map<string, 'claude' | 'codex'>()
   for (const f of claudeFiles) allFiles.set(f, 'claude')
@@ -112,9 +139,13 @@ function syncFiles(): void {
 
   // Get existing tracked files
   const tracked = new Map<string, { mtime_ms: number; size_bytes: number }>(
-    (db.prepare('SELECT file_path, mtime_ms, size_bytes FROM tracked_files').all() as Array<{
-      file_path: string; mtime_ms: number; size_bytes: number
-    }>).map(r => [r.file_path, { mtime_ms: r.mtime_ms, size_bytes: r.size_bytes }])
+    (
+      db.prepare('SELECT file_path, mtime_ms, size_bytes FROM tracked_files').all() as Array<{
+        file_path: string
+        mtime_ms: number
+        size_bytes: number
+      }>
+    ).map((r) => [r.file_path, { mtime_ms: r.mtime_ms, size_bytes: r.size_bytes }]),
   )
 
   // Prepare statements
@@ -122,24 +153,38 @@ function syncFiles(): void {
   const deleteTracked = db.prepare('DELETE FROM tracked_files WHERE file_path = ?')
   const deleteGlm = db.prepare('DELETE FROM glm_sessions WHERE file_path = ?')
   const upsertTracked = db.prepare(
-    'INSERT OR REPLACE INTO tracked_files (file_path, source, mtime_ms, size_bytes) VALUES (?, ?, ?, ?)'
+    'INSERT OR REPLACE INTO tracked_files (file_path, source, mtime_ms, size_bytes) VALUES (?, ?, ?, ?)',
   )
   const insertTurn = db.prepare(`
     INSERT INTO turns (source, session_id, file_path, date, timestamp, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
-  const insertGlm = db.prepare('INSERT OR REPLACE INTO glm_sessions (session_id, file_path) VALUES (?, ?)')
-  const upsertSessionMeta = db.prepare('INSERT OR REPLACE INTO session_meta (session_id, source, project) VALUES (?, ?, ?)')
-  const deleteSessionMeta = db.prepare('DELETE FROM session_meta WHERE session_id IN (SELECT DISTINCT session_id FROM turns WHERE file_path = ?)')
+  const insertGlm = db.prepare(
+    'INSERT OR REPLACE INTO glm_sessions (session_id, file_path) VALUES (?, ?)',
+  )
+  const upsertSessionMeta = db.prepare(
+    'INSERT OR REPLACE INTO session_meta (session_id, source, project) VALUES (?, ?, ?)',
+  )
+  const deleteSessionMeta = db.prepare(
+    'DELETE FROM session_meta WHERE session_id IN (SELECT DISTINCT session_id FROM turns WHERE file_path = ?)',
+  )
 
   const transaction = db.transaction(() => {
     // Process new/modified files
     for (const [filePath, source] of allFiles) {
       let st: { mtimeMs: number; size: number }
-      try { st = statSync(filePath) } catch { continue }
+      try {
+        st = statSync(filePath)
+      } catch {
+        continue
+      }
 
       const existing = tracked.get(filePath)
-      if (existing && existing.mtime_ms === Math.floor(st.mtimeMs) && existing.size_bytes === st.size) {
+      if (
+        existing &&
+        existing.mtime_ms === Math.floor(st.mtimeMs) &&
+        existing.size_bytes === st.size
+      ) {
         continue // unchanged
       }
 
@@ -163,8 +208,19 @@ function syncFiles(): void {
       }
 
       for (const t of turns) {
-        insertTurn.run(t.source, t.sessionId, filePath, t.date, t.timestamp, t.model,
-          t.inputTokens, t.outputTokens, t.cacheReadTokens, t.cacheWriteTokens, t.costUsd)
+        insertTurn.run(
+          t.source,
+          t.sessionId,
+          filePath,
+          t.date,
+          t.timestamp,
+          t.model,
+          t.inputTokens,
+          t.outputTokens,
+          t.cacheReadTokens,
+          t.cacheWriteTokens,
+          t.costUsd,
+        )
       }
 
       // Store session → project mapping (Codex only; Claude uses history.jsonl)
@@ -202,7 +258,9 @@ export function querySummary() {
   const weekCutoff = daysAgoStr(7)
   const monthCutoff = daysAgoStr(30)
 
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT
       SUM(cost_usd) AS total_cost,
       SUM(CASE WHEN date = ? THEN cost_usd ELSE 0 END) AS today_cost,
@@ -215,10 +273,19 @@ export function querySummary() {
       SUM(CASE WHEN source = 'codex' THEN 1 ELSE 0 END) AS codex_turns,
       COUNT(DISTINCT session_id) AS total_sessions
     FROM turns
-  `).get(todayStr, weekCutoff, monthCutoff) as {
-    total_cost: number | null; today_cost: number; week_cost: number; month_cost: number
-    total_tokens: number | null; total_input: number | null; total_cache_read: number | null
-    claude_turns: number; codex_turns: number; total_sessions: number
+  `,
+    )
+    .get(todayStr, weekCutoff, monthCutoff) as {
+    total_cost: number | null
+    today_cost: number
+    week_cost: number
+    month_cost: number
+    total_tokens: number | null
+    total_input: number | null
+    total_cache_read: number | null
+    claude_turns: number
+    codex_turns: number
+    total_sessions: number
   }
 
   const denom = (row.total_input ?? 0) + (row.total_cache_read ?? 0)
@@ -242,17 +309,24 @@ export function queryDaily(days: number) {
   const db = getDb()
   const cutoff = daysAgoStr(days)
 
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT date, source,
       SUM(cost_usd) AS cost,
       SUM(input_tokens + output_tokens) AS tokens
     FROM turns
     WHERE date >= ?
     GROUP BY date, source
-  `).all(cutoff) as Array<{ date: string; source: string; cost: number; tokens: number }>
+  `,
+    )
+    .all(cutoff) as Array<{ date: string; source: string; cost: number; tokens: number }>
 
   // Build scaffold with all dates
-  const byDate: Record<string, { claude: { cost: number; tokens: number }; codex: { cost: number; tokens: number } }> = {}
+  const byDate: Record<
+    string,
+    { claude: { cost: number; tokens: number }; codex: { cost: number; tokens: number } }
+  > = {}
   for (let i = 0; i < days; i++) {
     byDate[daysAgoStr(i)] = { claude: { cost: 0, tokens: 0 }, codex: { cost: 0, tokens: 0 } }
   }
@@ -271,7 +345,9 @@ export function querySessions() {
   ensureSync()
   const db = getDb()
 
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     WITH first_models AS (
       SELECT session_id, source, model,
         ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp ASC) AS rn
@@ -290,12 +366,20 @@ export function querySessions() {
     JOIN first_models fm ON fm.session_id = t.session_id AND fm.rn = 1
     GROUP BY t.session_id
     ORDER BY last_timestamp DESC
-  `).all() as Array<{
-    session_id: string; source: string; date: string; last_timestamp: number; model: string
-    cost: number; tokens: number; turns: number
+  `,
+    )
+    .all() as Array<{
+    session_id: string
+    source: string
+    date: string
+    last_timestamp: number
+    model: string
+    cost: number
+    tokens: number
+    turns: number
   }>
 
-  return rows.map(r => ({
+  return rows.map((r) => ({
     sessionId: r.session_id,
     source: r.source,
     date: r.date,
@@ -311,7 +395,9 @@ export function queryModels() {
   ensureSync()
   const db = getDb()
 
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       model,
       MIN(source) AS source,
@@ -321,11 +407,17 @@ export function queryModels() {
     FROM turns
     GROUP BY model
     ORDER BY cost DESC
-  `).all() as Array<{
-    model: string; source: string; cost: number; tokens: number; turns: number
+  `,
+    )
+    .all() as Array<{
+    model: string
+    source: string
+    cost: number
+    tokens: number
+    turns: number
   }>
 
-  return rows.map(r => ({
+  return rows.map((r) => ({
     model: r.model,
     source: r.source,
     cost: r.cost,
@@ -339,7 +431,9 @@ export function queryCodexProjects() {
   const db = getDb()
 
   // Get project data for Codex sessions from session_meta
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       sm.project,
       COUNT(DISTINCT sm.session_id) AS session_count,
@@ -349,12 +443,16 @@ export function queryCodexProjects() {
     JOIN turns t ON t.session_id = sm.session_id
     WHERE sm.project IS NOT NULL
     GROUP BY sm.project
-  `).all() as Array<{
-    project: string; session_count: number
-    turn_count: number; last_ts: number
+  `,
+    )
+    .all() as Array<{
+    project: string
+    session_count: number
+    turn_count: number
+    last_ts: number
   }>
 
-  return rows.map(r => ({
+  return rows.map((r) => ({
     project: r.project,
     sessionCount: r.session_count,
     turnCount: r.turn_count,
@@ -365,32 +463,47 @@ export function queryCodexProjects() {
 export function getGlmSessionIdsFromDb(): Set<string> {
   ensureSync()
   const db = getDb()
-  const rows = db.prepare('SELECT session_id FROM glm_sessions').all() as Array<{ session_id: string }>
-  return new Set(rows.map(r => r.session_id))
+  const rows = db.prepare('SELECT session_id FROM glm_sessions').all() as Array<{
+    session_id: string
+  }>
+  return new Set(rows.map((r) => r.session_id))
 }
 
 export function getKnownSessionIds(): Set<string> {
   ensureSync()
   const db = getDb()
-  const rows = db.prepare('SELECT DISTINCT session_id FROM turns').all() as Array<{ session_id: string }>
-  return new Set(rows.map(r => r.session_id))
+  const rows = db.prepare('SELECT DISTINCT session_id FROM turns').all() as Array<{
+    session_id: string
+  }>
+  return new Set(rows.map((r) => r.session_id))
 }
 
 export function getAllTurnsFromDb(): Turn[] {
   ensureSync()
   const db = getDb()
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT source, session_id, date, timestamp, model,
       input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd
     FROM turns
     ORDER BY timestamp
-  `).all() as Array<{
-    source: 'claude' | 'codex'; session_id: string; date: string; timestamp: number
-    model: string; input_tokens: number; output_tokens: number
-    cache_read_tokens: number; cache_write_tokens: number; cost_usd: number
+  `,
+    )
+    .all() as Array<{
+    source: 'claude' | 'codex'
+    session_id: string
+    date: string
+    timestamp: number
+    model: string
+    input_tokens: number
+    output_tokens: number
+    cache_read_tokens: number
+    cache_write_tokens: number
+    cost_usd: number
   }>
 
-  return rows.map(r => ({
+  return rows.map((r) => ({
     source: r.source,
     sessionId: r.session_id,
     date: r.date,

@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
   // Merge stats-cache data
   for (const d of activity) {
     if (byDate[d.date]) {
-      byDate[d.date].messages  = d.messageCount
-      byDate[d.date].sessions  = d.sessionCount
+      byDate[d.date].messages = d.messageCount
+      byDate[d.date].sessions = d.sessionCount
       byDate[d.date].toolCalls = d.toolCallCount
     }
   }
@@ -26,6 +26,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     Object.entries(byDate)
       .map(([date, v]) => ({ date, ...v }))
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort((a, b) => a.date.localeCompare(b.date)),
   )
 }

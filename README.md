@@ -30,10 +30,10 @@ src/
 
 ## Data sources
 
-| Tool | Path |
-|------|------|
-| Claude Code | `~/.claude/projects/**/*.jsonl` |
-| OpenAI Codex | `~/.codex/sessions/**/*.jsonl` |
+| Tool         | Path                            |
+| ------------ | ------------------------------- |
+| Claude Code  | `~/.claude/projects/**/*.jsonl` |
+| OpenAI Codex | `~/.codex/sessions/**/*.jsonl`  |
 
 Parsed data is cached in memory for 30 seconds.
 

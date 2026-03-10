@@ -60,12 +60,13 @@ export function daysAgoStr(n: number) {
 export const fmtSessionDate = (date: string, ts?: number) => {
   if (!ts) return shortDate(date)
   const d = new Date(ts)
-  const [, m, day] = d.toISOString().slice(0, 10).split('-')
+  const m = d.getMonth() + 1
+  const day = d.getDate()
   const h = d.getHours(),
     min = d.getMinutes()
-  const ampm = h >= 12 ? 'p' : 'a'
+  const ampm = h >= 12 ? 'pm' : 'am'
   const h12 = h % 12 || 12
   const minStr = min.toString().padStart(2, '0')
-  return `${MONTHS[parseInt(m)]} ${parseInt(day)} · ${h12}:${minStr}${ampm}`
+  return `${MONTHS[m]} ${day} · ${h12}:${minStr}${ampm}`
 }
 

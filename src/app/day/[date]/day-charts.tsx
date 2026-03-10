@@ -80,7 +80,7 @@ export function HourlyChart({ hourly }: { hourly: HourlyEntry[] }) {
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
-            ticks={['12a', '6a', '12p', '6p']}
+            ticks={['12am', '6am', '12pm', '6pm']}
           />
           <YAxis
             tick={{ fill: C.muted, fontSize: 11, fontFamily: C.mono }}

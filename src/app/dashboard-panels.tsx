@@ -41,7 +41,7 @@ export function HourlyPanel({ hourly }: { hourly: HourlyEntry[] }) {
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
-            ticks={['12a', '6a', '12p', '6p']}
+            ticks={['12am', '6am', '12pm', '6pm']}
           />
           <YAxis hide />
           <Tooltip content={<HourlyTooltip />} cursor={{ fill: 'rgba(255,255,255,0.025)' }} />

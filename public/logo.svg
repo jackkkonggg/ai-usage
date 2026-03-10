@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 44" fill="none">
+  <!-- Bar chart: 3 ascending bars -->
+  <!-- bar1: short, left -->
+  <rect x="8" y="31" width="8" height="7" rx="1.5" fill="#f59e0b" fill-opacity="0.5"/>
+  <!-- bar2: medium, center -->
+  <rect x="18" y="22" width="8" height="16" rx="1.5" fill="#f59e0b" fill-opacity="0.75"/>
+  <!-- bar3: tall, right -->
+  <rect x="28" y="12" width="8" height="26" rx="1.5" fill="#f97316"/>
+
+  <!-- Text: "AI Usage" -->
+  <text
+    x="52"
+    y="24"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    font-size="15"
+    font-weight="600"
+    fill="#e8e8e8"
+    letter-spacing="-0.2"
+  >AI Usage</text>
+
+  <!-- Text: "ANALYTICS" subtitle in mono style -->
+  <text
+    x="53"
+    y="37"
+    font-family="ui-monospace, SFMono-Regular, 'SF Mono', 'Courier New', monospace"
+    font-size="9.5"
+    fill="#999999"
+    letter-spacing="0.1em"
+  >ANALYTICS</text>
+</svg>

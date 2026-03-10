@@ -15,7 +15,7 @@ import {
 
 const DB_DIR = join(process.cwd(), '.cache')
 const DB_PATH = join(DB_DIR, 'usage.db')
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 
 let _db: Database.Database | null = null
 
@@ -85,9 +85,10 @@ function getDb(): Database.Database {
     );
 
     CREATE TABLE IF NOT EXISTS session_meta (
-      session_id TEXT PRIMARY KEY,
-      source     TEXT NOT NULL,
-      project    TEXT
+      session_id  TEXT PRIMARY KEY,
+      source      TEXT NOT NULL,
+      project     TEXT,
+      description TEXT
     );
 
     PRAGMA user_version = ${SCHEMA_VERSION};
@@ -168,7 +169,7 @@ function syncFiles(): void {
     'INSERT OR REPLACE INTO glm_sessions (session_id, file_path) VALUES (?, ?)',
   )
   const upsertSessionMeta = db.prepare(
-    'INSERT OR REPLACE INTO session_meta (session_id, source, project) VALUES (?, ?, ?)',
+    'INSERT OR REPLACE INTO session_meta (session_id, source, project, description) VALUES (?, ?, ?, ?)',
   )
   const deleteSessionMeta = db.prepare(
     'DELETE FROM session_meta WHERE session_id IN (SELECT DISTINCT session_id FROM turns WHERE file_path = ?)',
@@ -201,15 +202,18 @@ function syncFiles(): void {
       let turns: Turn[]
       let glmSessionIds: string[]
       let project: string | null = null
+      let description: string | null = null
       if (source === 'claude') {
         const result = parseClaudeFile(filePath)
         turns = result.turns
         glmSessionIds = result.glmSessionIds
+        description = result.description
       } else {
         const result = parseCodexFile(filePath)
         turns = result.turns
         glmSessionIds = []
         project = result.project
+        description = result.description
       }
 
       for (const t of turns) {
@@ -228,9 +232,9 @@ function syncFiles(): void {
         )
       }
 
-      // Store session → project mapping (Codex only; Claude uses history.jsonl)
-      if (project && turns.length > 0) {
-        upsertSessionMeta.run(turns[0].sessionId, source, project)
+      // Store session metadata for all sessions (description, project)
+      if (turns.length > 0) {
+        upsertSessionMeta.run(turns[0].sessionId, source, project, description)
       }
 
       for (const sid of glmSessionIds) {
@@ -366,9 +370,11 @@ export function querySessions() {
       fm.model,
       SUM(t.cost_usd) AS cost,
       SUM(t.input_tokens + t.output_tokens) AS tokens,
-      COUNT(*) AS turns
+      COUNT(*) AS turns,
+      sm.description
     FROM turns t
     JOIN first_models fm ON fm.session_id = t.session_id AND fm.rn = 1
+    LEFT JOIN session_meta sm ON sm.session_id = t.session_id
     GROUP BY t.session_id
     ORDER BY last_timestamp DESC
   `,
@@ -382,6 +388,7 @@ export function querySessions() {
     cost: number
     tokens: number
     turns: number
+    description: string | null
   }>
 
   return rows.map((r) => ({
@@ -393,6 +400,7 @@ export function querySessions() {
     cost: r.cost,
     tokens: r.tokens,
     turns: r.turns,
+    description: r.description ? r.description.slice(0, 120) : null,
   }))
 }
 
@@ -463,6 +471,179 @@ export function queryCodexProjects() {
     turnCount: r.turn_count,
     lastActive: new Date(r.last_ts).toISOString().slice(0, 10),
   }))
+}
+
+export function queryDayDetail(date: string) {
+  ensureSync()
+  const db = getDb()
+
+  // 1. Summary for this date
+  const summaryRow = db
+    .prepare(
+      `
+    SELECT
+      SUM(cost_usd) AS total_cost,
+      SUM(input_tokens + output_tokens) AS total_tokens,
+      SUM(input_tokens) AS total_input,
+      SUM(output_tokens) AS total_output,
+      SUM(cache_read_tokens) AS total_cache_read,
+      SUM(cache_write_tokens) AS total_cache_write,
+      COUNT(*) AS total_turns,
+      COUNT(DISTINCT session_id) AS session_count
+    FROM turns WHERE date = ?
+  `,
+    )
+    .get(date) as {
+    total_cost: number | null
+    total_tokens: number | null
+    total_input: number | null
+    total_output: number | null
+    total_cache_read: number | null
+    total_cache_write: number | null
+    total_turns: number
+    session_count: number
+  }
+
+  const inputDenom = (summaryRow.total_input ?? 0) + (summaryRow.total_cache_read ?? 0)
+  const cacheHitRate = inputDenom > 0 ? ((summaryRow.total_cache_read ?? 0) / inputDenom) * 100 : null
+
+  const summary = {
+    totalCost: summaryRow.total_cost ?? 0,
+    totalTokens: summaryRow.total_tokens ?? 0,
+    totalTurns: summaryRow.total_turns,
+    sessionCount: summaryRow.session_count,
+    cacheHitRate,
+    inputTokens: summaryRow.total_input ?? 0,
+    outputTokens: summaryRow.total_output ?? 0,
+    cacheReadTokens: summaryRow.total_cache_read ?? 0,
+    cacheWriteTokens: summaryRow.total_cache_write ?? 0,
+  }
+
+  // 2. Models
+  const modelRows = db
+    .prepare(
+      `
+    SELECT model, MIN(source) AS source,
+      SUM(cost_usd) AS cost,
+      SUM(input_tokens + output_tokens) AS tokens,
+      COUNT(*) AS turns
+    FROM turns WHERE date = ?
+    GROUP BY model ORDER BY cost DESC
+  `,
+    )
+    .all(date) as Array<{
+    model: string
+    source: string
+    cost: number
+    tokens: number
+    turns: number
+  }>
+
+  // 3. Sessions active on this date
+  const sessionRows = db
+    .prepare(
+      `
+    WITH first_models AS (
+      SELECT session_id, source, model,
+        ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp ASC) AS rn
+      FROM turns
+    )
+    SELECT
+      t.session_id,
+      fm.source,
+      MIN(t.date) AS date,
+      MAX(t.timestamp) AS last_timestamp,
+      fm.model,
+      SUM(t.cost_usd) AS cost,
+      SUM(t.input_tokens + t.output_tokens) AS tokens,
+      COUNT(*) AS turns,
+      sm.description
+    FROM turns t
+    JOIN first_models fm ON fm.session_id = t.session_id AND fm.rn = 1
+    LEFT JOIN session_meta sm ON sm.session_id = t.session_id
+    WHERE t.date = ?
+    GROUP BY t.session_id
+    ORDER BY last_timestamp DESC
+  `,
+    )
+    .all(date) as Array<{
+    session_id: string
+    source: string
+    date: string
+    last_timestamp: number
+    model: string
+    cost: number
+    tokens: number
+    turns: number
+    description: string | null
+  }>
+
+  // 4. Hourly breakdown
+  const hourlyRows = db
+    .prepare(
+      `
+    SELECT CAST(strftime('%H', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS hour,
+      COUNT(*) AS count
+    FROM turns WHERE date = ?
+    GROUP BY hour
+  `,
+    )
+    .all(date) as Array<{ hour: number; count: number }>
+
+  const hourlyMap = new Map(hourlyRows.map((r) => [r.hour, r.count]))
+  const hourLabels = [
+    '12a','1a','2a','3a','4a','5a','6a','7a','8a','9a','10a','11a',
+    '12p','1p','2p','3p','4p','5p','6p','7p','8p','9p','10p','11p',
+  ]
+  const hourly = Array.from({ length: 24 }, (_, i) => ({
+    hour: i,
+    label: hourLabels[i],
+    count: hourlyMap.get(i) ?? 0,
+  }))
+
+  // 5. Source split
+  const sourceRows = db
+    .prepare(
+      `
+    SELECT source,
+      SUM(cost_usd) AS cost,
+      SUM(input_tokens + output_tokens) AS tokens,
+      COUNT(*) AS turns
+    FROM turns WHERE date = ?
+    GROUP BY source
+  `,
+    )
+    .all(date) as Array<{ source: string; cost: number; tokens: number; turns: number }>
+
+  return {
+    date,
+    summary,
+    models: modelRows.map((r) => ({
+      model: r.model,
+      source: r.source,
+      cost: r.cost,
+      tokens: r.tokens,
+      turns: r.turns,
+    })),
+    sessions: sessionRows.map((r) => ({
+      sessionId: r.session_id,
+      source: r.source as 'claude' | 'codex',
+      date: r.date,
+      lastTimestamp: r.last_timestamp,
+      model: r.model,
+      cost: r.cost,
+      tokens: r.tokens,
+      turns: r.turns,
+      description: r.description ? r.description.slice(0, 120) : null,
+    })),
+    hourly,
+    sources: sourceRows.map((r) => ({
+      source: r.source,
+      cost: r.cost,
+      tokens: r.tokens,
+      turns: r.turns,
+    })),
+  }
 }
 
 export function getGlmSessionIdsFromDb(): Set<string> {

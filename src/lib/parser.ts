@@ -73,21 +73,40 @@ export function calcCost(
 
 // ─── Single-file Parsers ─────────────────────────────────────────────────────
 
-export function parseClaudeFile(filePath: string): { turns: Turn[]; glmSessionIds: string[] } {
+export function parseClaudeFile(filePath: string): {
+  turns: Turn[]
+  glmSessionIds: string[]
+  description: string | null
+} {
   const turns: Turn[] = []
   const glmSessionIds: string[] = []
   const sessionId = basename(filePath, '.jsonl')
+  let description: string | null = null
   let content = ''
   try {
     content = readFileSync(filePath, 'utf-8')
   } catch {
-    return { turns, glmSessionIds }
+    return { turns, glmSessionIds, description }
   }
 
   for (const line of content.split('\n')) {
     if (!line.trim()) continue
     try {
       const obj = JSON.parse(line)
+
+      // Capture the first user message as description
+      if (!description && obj.type === 'user') {
+        const msgContent = obj.message?.content
+        if (typeof msgContent === 'string' && msgContent.trim()) {
+          description = msgContent.trim().slice(0, 200)
+        } else if (Array.isArray(msgContent)) {
+          const textBlock = msgContent.find(
+            (b: { type?: string; text?: string }) => b.type === 'text' && b.text,
+          )
+          if (textBlock?.text) description = textBlock.text.trim().slice(0, 200)
+        }
+      }
+
       if (obj.type !== 'assistant') continue
       const usage = obj.message?.usage
       if (!usage) continue
@@ -118,18 +137,23 @@ export function parseClaudeFile(filePath: string): { turns: Turn[]; glmSessionId
       /* skip */
     }
   }
-  return { turns, glmSessionIds }
+  return { turns, glmSessionIds, description }
 }
 
-export function parseCodexFile(filePath: string): { turns: Turn[]; project: string | null } {
+export function parseCodexFile(filePath: string): {
+  turns: Turn[]
+  project: string | null
+  description: string | null
+} {
   const turns: Turn[] = []
   const sessionId = basename(filePath, '.jsonl')
   let project: string | null = null
+  let description: string | null = null
   let content = ''
   try {
     content = readFileSync(filePath, 'utf-8')
   } catch {
-    return { turns, project }
+    return { turns, project, description }
   }
 
   let prevInput = 0,
@@ -155,6 +179,15 @@ export function parseCodexFile(filePath: string): { turns: Turn[]; project: stri
       if (!payload) continue
       // Legacy format: model in payload.turn_context
       if (payload.turn_context?.model) currentModel = payload.turn_context.model as string
+
+      // Capture first user message as description
+      if (!description && payload.type === 'user_message') {
+        const msg = payload.message
+        if (typeof msg === 'string' && msg.trim()) {
+          description = msg.trim().slice(0, 200)
+        }
+      }
+
       if (payload.type !== 'token_count') continue
       // New format: payload.info.total_token_usage; legacy: payload.totals
       const totals = payload.info?.total_token_usage ?? payload.totals
@@ -191,7 +224,7 @@ export function parseCodexFile(filePath: string): { turns: Turn[]; project: stri
       /* skip */
     }
   }
-  return { turns, project }
+  return { turns, project, description }
 }
 
 // ─── Backward-compatible exports (now backed by SQLite) ─────────────────────

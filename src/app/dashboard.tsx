@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   BarChart,
   Bar,
@@ -12,363 +13,17 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-
-// ─── Design tokens ────────────────────────────────────────────────────────────
-
-const C = {
-  bg: '#070707',
-  surface: '#0f0f0f',
-  surface2: '#141414',
-  surface3: '#181818',
-  border: '#1e1e1e',
-  border2: '#242424',
-  amber: '#f59e0b',
-  orange: '#f97316',
-  emerald: '#10b981',
-  text: '#e8e8e8',
-  textDim: '#999',
-  muted: '#444',
-  mono: "'JetBrains Mono', monospace",
-  sans: "'Outfit', sans-serif",
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Summary {
-  totalCost: number
-  todayCost: number
-  weekCost: number
-  monthCost: number
-  totalTokens: number
-  claudeTurns: number
-  codexTurns: number
-  totalSessions: number
-  claudeFound: boolean
-  codexFound: boolean
-  totalMessages: number | null
-  timeSavedMs: number
-  firstSessionDate: string | null
-  cacheHitRate: number | null
-}
-interface DailyEntry {
-  date: string
-  claude: { cost: number; tokens: number }
-  codex: { cost: number; tokens: number }
-}
-interface Session {
-  sessionId: string
-  source: 'claude' | 'codex'
-  date: string
-  lastTimestamp?: number
-  model: string
-  cost: number
-  tokens: number
-  turns: number
-}
-interface ModelStat {
-  model: string
-  source: string
-  cost: number
-  tokens: number
-  turns: number
-}
-interface HourlyEntry {
-  hour: number
-  label: string
-  count: number
-}
-interface ProjectStat {
-  project: string
-  displayName: string
-  sessionCount: number
-  messageCount: number
-  lastActive: string
-}
-interface ActivityEntry {
-  date: string
-  messages: number
-  sessions: number
-  toolCalls: number
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const fmt$ = (n: number) =>
-  n === 0
-    ? '$0.00'
-    : n < 0.005
-      ? '<$0.01'
-      : `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const fmtBig$ = (n: number) =>
-  n >= 1000
-    ? `$${(n / 1000).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k`
-    : fmt$(n)
-const fmtTokens = (n: number) =>
-  n >= 1_000_000
-    ? `${(n / 1_000_000).toFixed(1)}M`
-    : n >= 1_000
-      ? `${(n / 1_000).toFixed(1)}K`
-      : String(n)
-const shortDate = (d: string) => {
-  const [, m, day] = d.split('-')
-  const months = [
-    '',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ]
-  return `${months[parseInt(m)]} ${parseInt(day)}`
-}
-const shortModel = (m: string) => {
-  if (!m || m === 'unknown') return '—'
-  if (m.includes('opus-4-6')) return 'Opus 4.6'
-  if (m.includes('opus-4-5')) return 'Opus 4.5'
-  if (m.includes('opus-4-1')) return 'Opus 4.1'
-  if (m.includes('opus-4')) return 'Opus 4'
-  if (m.includes('opus')) return 'Opus'
-  if (m.includes('sonnet-4-6')) return 'Sonnet 4.6'
-  if (m.includes('sonnet-4-5')) return 'Sonnet 4.5'
-  if (m.includes('sonnet-4')) return 'Sonnet 4'
-  if (m.includes('sonnet')) return 'Sonnet'
-  if (m.includes('haiku-4-5')) return 'Haiku 4.5'
-  if (m.includes('haiku')) return 'Haiku'
-  if (m.includes('5.1-codex')) return 'GPT-5.1'
-  if (m.includes('5.3-codex')) return 'GPT-5.3'
-  if (m.includes('5-codex')) return 'GPT-5'
-  if (m.includes('5.4')) return 'GPT-5.4'
-  if (m.includes('gpt-5')) return 'GPT-5'
-  if (m.includes('4o-mini')) return 'GPT-4o Mini'
-  if (m.includes('4o')) return 'GPT-4o'
-  return m.split('-').slice(0, 2).join('-')
-}
-const fmtSessionDate = (date: string, ts?: number) => {
-  if (!ts) return shortDate(date)
-  const d = new Date(ts)
-  const [, m, day] = d.toISOString().slice(0, 10).split('-')
-  const months = [
-    '',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ]
-  const h = d.getHours(),
-    min = d.getMinutes()
-  const ampm = h >= 12 ? 'p' : 'a'
-  const h12 = h % 12 || 12
-  const minStr = min.toString().padStart(2, '0')
-  return `${months[parseInt(m)]} ${parseInt(day)} · ${h12}:${minStr}${ampm}`
-}
-const fmtTimeSaved = (ms: number) => {
-  if (ms <= 0) return '—'
-  const totalMin = Math.floor(ms / 60_000)
-  const h = Math.floor(totalMin / 60)
-  const m = totalMin % 60
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
-}
-
-// ─── Custom tooltips ─────────────────────────────────────────────────────────
-
-function ChartTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean
-  payload?: { dataKey: string; value: number }[]
-  label?: string
-}) {
-  if (!active || !payload?.length) return null
-  const c = payload.find((p) => p.dataKey === 'claude')?.value ?? 0
-  const x = payload.find((p) => p.dataKey === 'codex')?.value ?? 0
-  if (c + x === 0) return null
-  return (
-    <div
-      style={{
-        background: C.surface2,
-        border: `1px solid ${C.border2}`,
-        borderRadius: 8,
-        padding: '10px 14px',
-        fontFamily: C.mono,
-        fontSize: 12,
-        lineHeight: 1.8,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-      }}
-    >
-      <div style={{ color: C.textDim, marginBottom: 4, fontSize: 11 }}>{label}</div>
-      {c > 0 && (
-        <div style={{ color: C.orange }}>
-          Claude <span style={{ float: 'right', marginLeft: 24 }}>{fmt$(c)}</span>
-        </div>
-      )}
-      {x > 0 && (
-        <div style={{ color: C.emerald }}>
-          Codex <span style={{ float: 'right', marginLeft: 24 }}>{fmt$(x)}</span>
-        </div>
-      )}
-      <div
-        style={{ color: C.amber, borderTop: `1px solid ${C.border}`, marginTop: 4, paddingTop: 4 }}
-      >
-        Total <span style={{ float: 'right', marginLeft: 24 }}>{fmt$(c + x)}</span>
-      </div>
-    </div>
-  )
-}
-
-function ActivityTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean
-  payload?: { dataKey: string; value: number }[]
-  label?: string
-}) {
-  if (!active || !payload?.length) return null
-  const msgs = payload.find((p) => p.dataKey === 'messages')?.value ?? 0
-  const tools = payload.find((p) => p.dataKey === 'toolCalls')?.value ?? 0
-  const sess = payload.find((p) => p.dataKey === 'sessions')?.value ?? 0
-  if (msgs + tools === 0) return null
-  return (
-    <div
-      style={{
-        background: C.surface2,
-        border: `1px solid ${C.border2}`,
-        borderRadius: 8,
-        padding: '10px 14px',
-        fontFamily: C.mono,
-        fontSize: 12,
-        lineHeight: 1.8,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-      }}
-    >
-      <div style={{ color: C.textDim, marginBottom: 4, fontSize: 11 }}>{label}</div>
-      <div style={{ color: C.amber }}>
-        Messages <span style={{ float: 'right', marginLeft: 24 }}>{msgs}</span>
-      </div>
-      <div style={{ color: C.orange }}>
-        Tool Calls <span style={{ float: 'right', marginLeft: 24 }}>{tools}</span>
-      </div>
-      <div style={{ color: C.muted }}>
-        Sessions <span style={{ float: 'right', marginLeft: 24 }}>{sess}</span>
-      </div>
-    </div>
-  )
-}
-
-function HourlyTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean
-  payload?: { dataKey: string; value: number }[]
-  label?: string
-}) {
-  if (!active || !payload?.length) return null
-  const count = payload[0]?.value ?? 0
-  if (count === 0) return null
-  return (
-    <div
-      style={{
-        background: C.surface2,
-        border: `1px solid ${C.border2}`,
-        borderRadius: 8,
-        padding: '8px 12px',
-        fontFamily: C.mono,
-        fontSize: 12,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-      }}
-    >
-      <span style={{ color: C.textDim }}>{label}</span>
-      <span style={{ color: C.amber, marginLeft: 12 }}>{count} sessions</span>
-    </div>
-  )
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div
-      style={{
-        background: C.surface,
-        border: `1px solid ${C.border}`,
-        borderRadius: 12,
-        padding: '18px 22px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 11,
-          color: C.muted,
-          textTransform: 'uppercase',
-          letterSpacing: '0.09em',
-          fontWeight: 500,
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize: 30,
-          fontWeight: 700,
-          fontFamily: C.mono,
-          color: C.amber,
-          letterSpacing: '-1.5px',
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </span>
-      {sub && <span style={{ fontSize: 12, color: C.textDim }}>{sub}</span>}
-    </div>
-  )
-}
-
-function SourceBadge({ source }: { source: string }) {
-  const isClaude = source === 'claude'
-  const color = isClaude ? C.orange : C.emerald
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        padding: '3px 9px',
-        borderRadius: 4,
-        background: `${color}18`,
-        color,
-        letterSpacing: '0.02em',
-      }}
-    >
-      {isClaude ? 'Claude' : 'Codex'}
-    </span>
-  )
-}
-
-// ─── Dashboard ────────────────────────────────────────────────────────────────
+import type { CategoricalChartFunc } from 'recharts/types/chart/types'
+import { C } from '@/lib/design-tokens'
+import { fmt$, fmtBig$, fmtTokens, shortDate, shortModel, fmtSessionDate } from '@/lib/format'
+import type { Summary, DailyEntry, Session, ModelStat, HourlyEntry, ProjectStat, ActivityEntry } from '@/lib/types'
+import { StatCard } from '@/components/stat-card'
+import { SourceBadge } from '@/components/source-badge'
+import { ChartTooltip, ActivityTooltip, HourlyTooltip } from '@/components/chart-tooltip'
+import { FullPageLoader } from '@/components/loader'
 
 export default function Dashboard() {
+  const router = useRouter()
   const [summary, setSummary] = useState<Summary | null>(null)
   const [daily, setDaily] = useState<DailyEntry[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
@@ -422,34 +77,14 @@ export default function Dashboard() {
   }
 
   if (loading) {
-    return (
-      <div
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              fontSize: 36,
-              marginBottom: 12,
-              animation: 'spin 1s linear infinite',
-              display: 'inline-block',
-            }}
-          >
-            ◌
-          </div>
-          <div style={{ color: C.muted, fontFamily: C.mono, fontSize: 13 }}>
-            parsing session data…
-          </div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-        </div>
-      </div>
-    )
+    return <FullPageLoader message="parsing session data…" />
   }
 
   const s = summary!
   const maxModelCost = models[0]?.cost || 1
   const costChartData = daily.map((d) => ({
     date: shortDate(d.date),
+    rawDate: d.date,
     claude: d.claude.cost,
     codex: d.codex.cost,
   }))
@@ -460,6 +95,13 @@ export default function Dashboard() {
     sessions: d.sessions,
   }))
   const maxProjectMsgs = projects[0]?.messageCount || 1
+
+  const handleChartClick: CategoricalChartFunc = (nextState) => {
+    const idx = Number(nextState?.activeTooltipIndex)
+    if (!Number.isNaN(idx) && costChartData[idx]) {
+      router.push(`/day/${costChartData[idx].rawDate}`)
+    }
+  }
 
   return (
     <div
@@ -686,6 +328,8 @@ export default function Dashboard() {
                 data={costChartData}
                 barSize={range <= 7 ? 24 : range <= 30 ? 12 : 5}
                 barGap={1}
+                onClick={handleChartClick}
+                style={{ cursor: 'pointer' }}
               >
                 <CartesianGrid vertical={false} stroke={C.border} />
                 <XAxis

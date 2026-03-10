@@ -93,3 +93,21 @@ export interface DayDetail {
   hourly: HourlyEntry[]
   sources: SourceSplit[]
 }
+
+// ─── Project Detail Types ────────────────────────────────────────────────────
+
+export interface ProjectDailyEntry {
+  date: string
+  claude: number
+  codex: number
+}
+
+export interface ProjectDetail {
+  project: string
+  displayName: string
+  summary: DaySummary
+  models: ModelStat[]
+  sessions: Session[]
+  daily: ProjectDailyEntry[]
+  sources: SourceSplit[]
+}

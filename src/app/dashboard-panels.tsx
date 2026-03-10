@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {
   BarChart,
   Bar,
@@ -72,9 +73,23 @@ export function ProjectsPanel({ projects }: { projects: ProjectStat[] }) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 8, color: C.amber, lineHeight: 1 }}>●</span>
-                  <span style={{ fontSize: 14, color: C.text, fontWeight: 500 }}>
+                  <Link
+                    href={`/project/${encodeURIComponent(p.project)}`}
+                    style={{
+                      fontSize: 14,
+                      color: C.text,
+                      fontWeight: 500,
+                      textDecoration: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.color = C.amber
+                    }}
+                    onMouseLeave={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.color = C.text
+                    }}
+                  >
                     {p.displayName}
-                  </span>
+                  </Link>
                 </div>
                 <span
                   style={{ fontSize: 13, fontFamily: C.mono, color: C.amber, fontWeight: 600 }}

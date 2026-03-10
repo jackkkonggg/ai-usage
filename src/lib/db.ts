@@ -23,7 +23,7 @@ const SCHEMA_VERSION = 4
 
 let _db: Database.Database | null = null
 
-function getDb(): Database.Database {
+export function getDb(): Database.Database {
   if (_db) return _db
 
   mkdirSync(DB_DIR, { recursive: true })

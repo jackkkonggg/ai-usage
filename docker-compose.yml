@@ -3,6 +3,8 @@ services:
     build: .
     ports:
       - "4005:4005"
+    environment:
+      - TZ=${TZ:-Asia/Singapore}
     volumes:
       # Read-only: Claude Code session logs
       - type: bind

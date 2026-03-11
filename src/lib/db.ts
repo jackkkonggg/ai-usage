@@ -19,7 +19,7 @@ const CODEX_DIRS = parsers.codex.sessionDirs
 
 const DB_DIR = join(process.cwd(), '.cache')
 const DB_PATH = join(DB_DIR, 'usage.db')
-const SCHEMA_VERSION = 6
+const SCHEMA_VERSION = 7
 
 let _db: Database.Database | null = null
 

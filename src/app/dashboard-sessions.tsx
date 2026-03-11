@@ -1,14 +1,18 @@
 'use client'
 
+import { useState } from 'react'
 import { C } from '@/lib/design-tokens'
 import { fmt$, fmtTokens, shortModel, fmtSessionDate } from '@/lib/format'
 import type { Session } from '@/lib/types'
 import { SourceBadge } from '@/components/source-badge'
+import { SessionDetailDialog } from '@/components/session-detail-dialog'
 
 const HEADERS = ['Date', 'Source', 'Model', 'Turns', 'Tokens', 'Cost']
 
 export function SessionsPanel({ sessions }: { sessions: Session[] }) {
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   return (
+    <>
     <div
       style={{
         background: C.surface,
@@ -64,7 +68,11 @@ export function SessionsPanel({ sessions }: { sessions: Session[] }) {
             {sessions.slice(0, 50).map((sess, i) => (
               <tr
                 key={sess.sessionId}
-                style={{ borderBottom: `1px solid ${i < 49 ? C.border : 'transparent'}` }}
+                style={{
+                  borderBottom: `1px solid ${i < 49 ? C.border : 'transparent'}`,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setSelectedSessionId(sess.sessionId)}
                 onMouseEnter={(e) => {
                   ;(e.currentTarget as HTMLElement).style.background = C.surface2
                 }}
@@ -147,5 +155,13 @@ export function SessionsPanel({ sessions }: { sessions: Session[] }) {
         </table>
       </div>
     </div>
+    {selectedSessionId && (
+      <SessionDetailDialog
+        sessionId={selectedSessionId}
+        open={!!selectedSessionId}
+        onOpenChange={(open) => { if (!open) setSelectedSessionId(null) }}
+      />
+    )}
+    </>
   )
 }

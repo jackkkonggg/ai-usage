@@ -3,8 +3,8 @@ import { ClaudeParser } from '@/lib/parsers/claude-parser'
 import { CodexParser } from '@/lib/parsers/codex-parser'
 import { getStatsCache, clearStatsCache } from '@/lib/stats-cache'
 
-const CLAUDE_DIR = new ClaudeParser().sessionDir
-const CODEX_DIR = new CodexParser().sessionDir
+const CLAUDE_DIRS = new ClaudeParser().sessionDirs
+const CODEX_DIRS = new CodexParser().sessionDirs
 import { querySummary, forceSync } from '@/lib/db'
 import { existsSync } from 'fs'
 
@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
     claudeTurns: summary.claudeTurns,
     codexTurns: summary.codexTurns,
     totalSessions: summary.totalSessions,
-    claudeFound: existsSync(CLAUDE_DIR),
-    codexFound: existsSync(CODEX_DIR),
+    claudeFound: CLAUDE_DIRS.some(existsSync),
+    codexFound: CODEX_DIRS.some(existsSync),
     totalMessages: sc?.totalMessages ?? null,
     timeSavedMs: sc?.totalSpeculationTimeSavedMs ?? 0,
     firstSessionDate: sc?.firstSessionDate?.slice(0, 10) ?? null,

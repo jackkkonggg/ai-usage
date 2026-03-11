@@ -12,14 +12,14 @@ const parsers: Record<string, SessionParser> = {
   claude: new ClaudeParser(),
   codex: new CodexParser(),
 }
-const CLAUDE_DIR = parsers.claude.sessionDir
-const CODEX_DIR = parsers.codex.sessionDir
+const CLAUDE_DIRS = parsers.claude.sessionDirs
+const CODEX_DIRS = parsers.codex.sessionDirs
 
 // ─── Database Setup ─────────────────────────────────────────────────────────
 
 const DB_DIR = join(process.cwd(), '.cache')
 const DB_PATH = join(DB_DIR, 'usage.db')
-const SCHEMA_VERSION = 5
+const SCHEMA_VERSION = 6
 
 let _db: Database.Database | null = null
 
@@ -91,8 +91,7 @@ export function getDb(): Database.Database {
     CREATE TABLE IF NOT EXISTS session_meta (
       session_id  TEXT PRIMARY KEY,
       source      TEXT NOT NULL,
-      project     TEXT,
-      description TEXT
+      project     TEXT
     );
 
     PRAGMA user_version = ${SCHEMA_VERSION};
@@ -132,15 +131,19 @@ function syncFiles(): void {
   // Gather all JSONL files from both sources
   const claudeFiles: string[] = []
   const codexFiles: string[] = []
-  try {
-    claudeFiles.push(...globSync(`${CLAUDE_DIR}/**/*.jsonl`, { nodir: true }))
-  } catch {
-    /* empty */
+  for (const dir of CLAUDE_DIRS) {
+    try {
+      claudeFiles.push(...globSync(`${dir}/**/*.jsonl`, { nodir: true }))
+    } catch {
+      /* empty */
+    }
   }
-  try {
-    codexFiles.push(...globSync(`${CODEX_DIR}/**/*.jsonl`, { nodir: true }))
-  } catch {
-    /* empty */
+  for (const dir of CODEX_DIRS) {
+    try {
+      codexFiles.push(...globSync(`${dir}/**/*.jsonl`, { nodir: true }))
+    } catch {
+      /* empty */
+    }
   }
 
   const allFiles = new Map<string, 'claude' | 'codex'>()
@@ -173,7 +176,7 @@ function syncFiles(): void {
     'INSERT OR REPLACE INTO glm_sessions (session_id, file_path) VALUES (?, ?)',
   )
   const upsertSessionMeta = db.prepare(
-    'INSERT OR REPLACE INTO session_meta (session_id, source, project, description) VALUES (?, ?, ?, ?)',
+    'INSERT OR REPLACE INTO session_meta (session_id, source, project) VALUES (?, ?, ?)',
   )
   const deleteSessionMeta = db.prepare(
     'DELETE FROM session_meta WHERE session_id IN (SELECT DISTINCT session_id FROM turns WHERE file_path = ?)',
@@ -222,9 +225,8 @@ function syncFiles(): void {
         )
       }
 
-      // Store session metadata for all sessions (description, project)
       if (result.turns.length > 0) {
-        upsertSessionMeta.run(result.turns[0].sessionId, source, result.project, result.description)
+        upsertSessionMeta.run(result.turns[0].sessionId, source, result.project)
       }
 
       // GLM detection: scan Claude files for glm-prefixed models
@@ -371,8 +373,7 @@ export function querySessions() {
       fm.model,
       SUM(t.cost_usd) AS cost,
       SUM(t.input_tokens + t.output_tokens) AS tokens,
-      COUNT(*) AS turns,
-      sm.description
+      COUNT(*) AS turns
     FROM turns t
     JOIN first_models fm ON fm.session_id = t.session_id AND fm.rn = 1
     LEFT JOIN session_meta sm ON sm.session_id = t.session_id
@@ -389,7 +390,6 @@ export function querySessions() {
     cost: number
     tokens: number
     turns: number
-    description: string | null
   }>
 
   return rows.map((r) => ({
@@ -401,7 +401,6 @@ export function querySessions() {
     cost: r.cost,
     tokens: r.tokens,
     turns: r.turns,
-    description: r.description ? r.description.slice(0, 120) : null,
   }))
 }
 
@@ -557,8 +556,7 @@ export function queryDayDetail(date: string) {
       fm.model,
       SUM(t.cost_usd) AS cost,
       SUM(t.input_tokens + t.output_tokens) AS tokens,
-      COUNT(*) AS turns,
-      sm.description
+      COUNT(*) AS turns
     FROM turns t
     JOIN first_models fm ON fm.session_id = t.session_id AND fm.rn = 1
     LEFT JOIN session_meta sm ON sm.session_id = t.session_id
@@ -576,7 +574,6 @@ export function queryDayDetail(date: string) {
     cost: number
     tokens: number
     turns: number
-    description: string | null
   }>
 
   // 4. Hourly breakdown
@@ -635,7 +632,6 @@ export function queryDayDetail(date: string) {
       cost: r.cost,
       tokens: r.tokens,
       turns: r.turns,
-      description: r.description ? r.description.slice(0, 120) : null,
     })),
     hourly,
     sources: sourceRows.map((r) => ({

@@ -1,17 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import { C } from '@/lib/design-tokens'
 import { fmt$, fmtTokens, shortModel, fmtSessionDate } from '@/lib/format'
 import type { Session } from '@/lib/types'
 import { SourceBadge } from '@/components/source-badge'
+import { SessionDetailDialog } from '@/components/session-detail-dialog'
 import {
   TooltipProvider,
-  TooltipRoot,
-  TooltipTrigger,
-  TooltipContent,
 } from '@/components/ui/tooltip'
 
 export function ProjectSessions({ sessions }: { sessions: Session[] }) {
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   return (
     <TooltipProvider delayDuration={300}>
       <div
@@ -71,7 +71,9 @@ export function ProjectSessions({ sessions }: { sessions: Session[] }) {
                   key={sess.sessionId}
                   style={{
                     borderBottom: `1px solid ${i < sessions.length - 1 ? C.border : 'transparent'}`,
+                    cursor: 'pointer',
                   }}
+                  onClick={() => setSelectedSessionId(sess.sessionId)}
                   onMouseEnter={(e) => {
                     ;(e.currentTarget as HTMLElement).style.background = C.surface2
                   }}
@@ -90,29 +92,6 @@ export function ProjectSessions({ sessions }: { sessions: Session[] }) {
                     >
                       {fmtSessionDate(sess.date, sess.lastTimestamp)}
                     </div>
-                    {sess.description && (
-                      <TooltipRoot>
-                        <TooltipTrigger asChild>
-                          <div
-                            style={{
-                              color: C.muted,
-                              fontSize: 11,
-                              marginTop: 3,
-                              maxWidth: 220,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              cursor: 'default',
-                            }}
-                          >
-                            {sess.description.length > 100
-                              ? sess.description.slice(0, 100) + '…'
-                              : sess.description}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>{sess.description}</TooltipContent>
-                      </TooltipRoot>
-                    )}
                   </td>
                   <td style={{ padding: '10px 12px 10px 0', verticalAlign: 'top' }}>
                     <SourceBadge source={sess.source} />
@@ -183,6 +162,13 @@ export function ProjectSessions({ sessions }: { sessions: Session[] }) {
           </table>
         </div>
       </div>
+      {selectedSessionId && (
+        <SessionDetailDialog
+          sessionId={selectedSessionId}
+          open={!!selectedSessionId}
+          onOpenChange={(open) => { if (!open) setSelectedSessionId(null) }}
+        />
+      )}
     </TooltipProvider>
   )
 }

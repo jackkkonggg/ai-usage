@@ -13,12 +13,11 @@ export interface Turn {
 
 export interface ParseResult {
   turns: Turn[]
-  description: string | null
   project: string | null
 }
 
 export abstract class SessionParser {
   abstract readonly source: 'claude' | 'codex'
-  abstract readonly sessionDir: string
+  abstract readonly sessionDirs: string[]
   abstract parseFile(filePath: string): ParseResult
 }

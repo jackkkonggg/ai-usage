@@ -8,18 +8,20 @@ import type { Turn, ParseResult } from './session-parser'
 
 export class CodexParser extends SessionParser {
   readonly source = 'codex' as const
-  readonly sessionDir = join(homedir(), '.codex', 'sessions')
+  readonly sessionDirs = [
+    join(homedir(), '.codex', 'sessions'),
+    join(homedir(), '.codex', 'archived_sessions'),
+  ]
 
   parseFile(filePath: string): ParseResult {
     const turns: Turn[] = []
     const sessionId = basename(filePath, '.jsonl')
     let project: string | null = null
-    let description: string | null = null
     let content = ''
     try {
       content = readFileSync(filePath, 'utf-8')
     } catch {
-      return { turns, project, description }
+      return { turns, project }
     }
 
     let prevInput = 0,
@@ -46,14 +48,6 @@ export class CodexParser extends SessionParser {
         // Legacy format: model in payload.turn_context
         if (payload.turn_context?.model) currentModel = payload.turn_context.model as string
 
-        // Capture first user message as description
-        if (!description && payload.type === 'user_message') {
-          const msg = payload.message
-          if (typeof msg === 'string' && msg.trim()) {
-            description = msg.trim().slice(0, 200)
-          }
-        }
-
         if (payload.type !== 'token_count') continue
         // New format: payload.info.total_token_usage; legacy: payload.totals
         const totals = payload.info?.total_token_usage ?? payload.totals
@@ -61,12 +55,14 @@ export class CodexParser extends SessionParser {
         const currInput = (totals.input_tokens ?? 0) as number
         const currOutput = (totals.output_tokens ?? 0) as number
         const currCached = (totals.cached_input_tokens ?? 0) as number
-        const deltaInput = Math.max(0, currInput - prevInput)
         const deltaOutput = Math.max(0, currOutput - prevOutput)
         const deltaCached = Math.max(0, currCached - prevCached)
+        // OpenAI reports input_tokens inclusive of cached; compute delta of non-cached input directly
+        const deltaInput = Math.max(0, (currInput - currCached) - (prevInput - prevCached))
         if (deltaInput > 0 || deltaOutput > 0) {
-          const ts: number = obj.timestamp
-            ? new Date(obj.timestamp).getTime()
+          const rawTs = obj.timestamp ? new Date(obj.timestamp).getTime() : NaN
+          const ts: number = Number.isFinite(rawTs)
+            ? rawTs
             : typeof obj.ts === 'number'
               ? obj.ts
               : Date.now()
@@ -90,6 +86,6 @@ export class CodexParser extends SessionParser {
         /* skip */
       }
     }
-    return { turns, project, description }
+    return { turns, project }
   }
 }

@@ -32,7 +32,6 @@ export interface Session {
   cost: number
   tokens: number
   turns: number
-  description?: string | null
 }
 
 export interface ModelStat {
@@ -92,6 +91,27 @@ export interface DayDetail {
   sessions: Session[]
   hourly: HourlyEntry[]
   sources: SourceSplit[]
+}
+
+// ─── Session Detail Types ────────────────────────────────────────────────────
+
+export interface ToolCall {
+  name: string
+  summary: string
+}
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+  tools?: ToolCall[]
+  kind?: 'command'
+}
+
+export interface SessionDetail extends Session {
+  filePath: string | null
+  project: string | null
+  messages: ConversationMessage[]
 }
 
 // ─── Project Detail Types ────────────────────────────────────────────────────

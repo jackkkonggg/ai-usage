@@ -115,8 +115,7 @@ export function queryProjectDetail(project: string): ProjectDetail | null {
         fm.model,
         SUM(t.cost_usd) AS cost,
         SUM(t.input_tokens + t.output_tokens) AS tokens,
-        COUNT(*) AS turns,
-        sm.description
+        COUNT(*) AS turns
       FROM turns t
       JOIN first_models fm ON fm.session_id = t.session_id AND fm.rn = 1
       LEFT JOIN session_meta sm ON sm.session_id = t.session_id
@@ -133,7 +132,6 @@ export function queryProjectDetail(project: string): ProjectDetail | null {
     cost: number
     tokens: number
     turns: number
-    description: string | null
   }>
 
   // 4. Daily cost by source
@@ -190,7 +188,6 @@ export function queryProjectDetail(project: string): ProjectDetail | null {
       cost: r.cost,
       tokens: r.tokens,
       turns: r.turns,
-      description: r.description ? r.description.slice(0, 120) : null,
     })),
     daily,
     sources: sourceRows.map((r) => ({

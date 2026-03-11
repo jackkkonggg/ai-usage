@@ -62,7 +62,9 @@ export function localDateStr(ts?: number): string {
 }
 
 export function daysAgoStr(n: number) {
-  return localDateStr(Date.now() - n * 86_400_000)
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return localDateStr(d.getTime())
 }
 
 export const fmtSessionDate = (date: string, ts?: number) => {

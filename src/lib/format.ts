@@ -53,8 +53,16 @@ export const shortModel = (m: string) => {
   return MODEL_DISPLAY.find(([sub]) => m.includes(sub))?.[1] ?? m.split('-').slice(0, 2).join('-')
 }
 
+export function localDateStr(ts?: number): string {
+  const d = ts != null ? new Date(ts) : new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export function daysAgoStr(n: number) {
-  return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10)
+  return localDateStr(Date.now() - n * 86_400_000)
 }
 
 export const fmtSessionDate = (date: string, ts?: number) => {

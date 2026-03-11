@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { getHistory } from '@/lib/stats-cache'
 import { queryCodexProjects, getGlmSessionIdsFromDb, getKnownSessionIds, forceSync } from '@/lib/db'
+import { localDateStr } from '@/lib/format'
 import { basename } from 'path'
 
 export const dynamic = 'force-dynamic'
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
       displayName: basename(project) || 'Unknown',
       sessionCount: v.sessionCount,
       messageCount: v.messageCount || v.turnCount,
-      lastActive: new Date(v.lastTs).toISOString().slice(0, 10),
+      lastActive: localDateStr(v.lastTs),
     }))
     .sort((a, b) => b.messageCount - a.messageCount)
 

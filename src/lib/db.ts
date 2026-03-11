@@ -6,7 +6,7 @@ import { ClaudeParser } from '@/lib/parsers/claude-parser'
 import { CodexParser } from '@/lib/parsers/codex-parser'
 import type { SessionParser } from '@/lib/parsers/session-parser'
 import type { Turn } from '@/lib/parsers/session-parser'
-import { daysAgoStr } from '@/lib/format'
+import { daysAgoStr, localDateStr } from '@/lib/format'
 
 const parsers: Record<string, SessionParser> = {
   claude: new ClaudeParser(),
@@ -19,7 +19,7 @@ const CODEX_DIR = parsers.codex.sessionDir
 
 const DB_DIR = join(process.cwd(), '.cache')
 const DB_PATH = join(DB_DIR, 'usage.db')
-const SCHEMA_VERSION = 4
+const SCHEMA_VERSION = 5
 
 let _db: Database.Database | null = null
 
@@ -264,7 +264,7 @@ function syncFiles(): void {
 export function querySummary() {
   ensureSync()
   const db = getDb()
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = localDateStr()
   const weekCutoff = daysAgoStr(7)
   const monthCutoff = daysAgoStr(30)
 
@@ -470,7 +470,7 @@ export function queryCodexProjects() {
     project: r.project,
     sessionCount: r.session_count,
     turnCount: r.turn_count,
-    lastActive: new Date(r.last_ts).toISOString().slice(0, 10),
+    lastActive: localDateStr(r.last_ts),
   }))
 }
 

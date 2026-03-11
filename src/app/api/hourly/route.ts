@@ -33,12 +33,20 @@ const LABELS = [
 export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('force') === 'true') clearStatsCache()
   const sc = getStatsCache()
-  const hourCounts = sc?.hourCounts ?? {}
+  const utcCounts = sc?.hourCounts ?? {}
+
+  // Shift UTC hours to local timezone
+  const tzOffsetHours = -Math.round(new Date().getTimezoneOffset() / 60)
+  const localCounts: Record<string, number> = {}
+  for (const [utcHour, count] of Object.entries(utcCounts)) {
+    const localHour = ((parseInt(utcHour) + tzOffsetHours) % 24 + 24) % 24
+    localCounts[String(localHour)] = (localCounts[String(localHour)] ?? 0) + count
+  }
 
   const data = Array.from({ length: 24 }, (_, i) => ({
     hour: i,
     label: LABELS[i],
-    count: hourCounts[String(i)] ?? 0,
+    count: localCounts[String(i)] ?? 0,
   }))
 
   return NextResponse.json(data)

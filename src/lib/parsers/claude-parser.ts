@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import { homedir } from 'os'
 import { join, basename } from 'path'
 import { calcCost } from './pricing'
+import { localDateStr } from '@/lib/format'
 import { SessionParser } from './session-parser'
 import type { Turn, ParseResult } from './session-parser'
 
@@ -53,7 +54,7 @@ export class ClaudeParser extends SessionParser {
         turns.push({
           source: 'claude',
           sessionId,
-          date: new Date(ts).toISOString().slice(0, 10),
+          date: localDateStr(ts),
           timestamp: ts,
           model,
           inputTokens: input,

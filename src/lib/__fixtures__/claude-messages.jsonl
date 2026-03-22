@@ -1,0 +1,6 @@
+{"type":"user","message":{"content":"Hello, can you help me?"},"timestamp":"2024-01-15T10:00:00Z"}
+{"type":"assistant","message":{"content":"Sure, I can help you with that."},"timestamp":"2024-01-15T10:00:01Z"}
+{"type":"user","isMeta":true,"message":{"content":"system meta info"}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Let me check."},{"type":"tool_use","name":"Read","input":{"file_path":"/src/lib/db.ts"}}]},"timestamp":"2024-01-15T10:00:02Z"}
+{"type":"user","message":{"content":"<command-name>git status</command-name>"},"timestamp":"2024-01-15T10:00:03Z"}
+{"type":"user","message":{"content":"<local-command-stdout>On branch main</local-command-stdout>"},"timestamp":"2024-01-15T10:00:04Z"}

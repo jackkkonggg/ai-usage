@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useStaleRefetch } from '@/hooks/use-stale-refetch'
 import { C } from '@/lib/design-tokens'
 import { fmt$, fmtTokens } from '@/lib/format'
 import type { DayDetail as DayDetailType } from '@/lib/types'
@@ -21,6 +22,7 @@ function formatFullDate(dateStr: string) {
 
 export default function DayDetail({ date, data }: { date: string; data: DayDetailType }) {
   const router = useRouter()
+  useStaleRefetch()
 
   const { summary: s, sources } = data
   const claudeSrc = sources.find((src) => src.source === 'claude')

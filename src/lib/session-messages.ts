@@ -63,7 +63,7 @@ function extractTools(content: unknown): ToolCall[] {
     })
 }
 
-function parseClaudeMessages(lines: string[]): ConversationMessage[] {
+export function parseClaudeMessages(lines: string[]): ConversationMessage[] {
   const messages: ConversationMessage[] = []
   let lastCommand: ConversationMessage | null = null
 
@@ -122,7 +122,7 @@ function parseClaudeMessages(lines: string[]): ConversationMessage[] {
   return messages
 }
 
-function parseCodexMessages(lines: string[]): ConversationMessage[] {
+export function parseCodexMessages(lines: string[]): ConversationMessage[] {
   const messages: ConversationMessage[] = []
   for (const line of lines) {
     if (!line.trim()) continue

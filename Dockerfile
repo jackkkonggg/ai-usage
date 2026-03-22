@@ -2,7 +2,7 @@
 FROM node:24.14.0-alpine AS deps
 WORKDIR /app
 
-RUN npm install -g pnpm@10.30.3
+RUN npm install -g pnpm@10.32.1
 
 COPY package.json pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile
@@ -11,7 +11,7 @@ RUN pnpm install --frozen-lockfile
 FROM node:24.14.0-alpine AS builder
 WORKDIR /app
 
-RUN npm install -g pnpm@10.30.3
+RUN npm install -g pnpm@10.32.1
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -41,7 +41,7 @@ ENV NODE_ENV=production
 ENV PORT=4005
 
 # better-sqlite3 is a C++ native module; it needs libstdc++ and glibc compat at runtime.
-RUN apk add --no-cache libc6-compat libstdc++
+RUN apk add --no-cache libc6-compat libstdc++ tzdata
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --home /app nextjs && \

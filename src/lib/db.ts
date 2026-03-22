@@ -661,4 +661,14 @@ export function getKnownSessionIds(): Set<string> {
   return new Set(rows.map((r) => r.session_id))
 }
 
+/** @internal test-only — replace the DB singleton with a provided instance */
+export function _testSetDb(db: Database.Database): void {
+  _db = db
+}
+
+/** @internal test-only — prevent ensureSync from running */
+export function _testSkipSync(): void {
+  lastSyncTime = Date.now()
+}
+
 

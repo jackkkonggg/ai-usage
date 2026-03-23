@@ -19,7 +19,7 @@ const CODEX_DIRS = parsers.codex.sessionDirs
 
 const DB_DIR = join(process.cwd(), '.cache')
 const DB_PATH = join(DB_DIR, 'usage.db')
-const SCHEMA_VERSION = 7
+const SCHEMA_VERSION = 9
 
 let _db: Database.Database | null = null
 
@@ -439,6 +439,23 @@ export function queryModels() {
   }))
 }
 
+export function queryProjectCosts(
+  claudeSessions: Record<string, Set<string>>,
+): Map<string, number> {
+  const db = getDb()
+  const result = new Map<string, number>()
+  for (const [project, sessions] of Object.entries(claudeSessions)) {
+    const ids = Array.from(sessions)
+    if (ids.length === 0) continue
+    const placeholders = ids.map(() => '?').join(',')
+    const row = db
+      .prepare(`SELECT SUM(cost_usd) AS cost FROM turns WHERE session_id IN (${placeholders})`)
+      .get(ids) as { cost: number | null }
+    result.set(project, row.cost ?? 0)
+  }
+  return result
+}
+
 export function queryCodexProjects() {
   ensureSync()
   const db = getDb()
@@ -451,10 +468,11 @@ export function queryCodexProjects() {
       sm.project,
       COUNT(DISTINCT sm.session_id) AS session_count,
       COUNT(t.id) AS turn_count,
+      SUM(t.cost_usd) AS cost,
       MAX(t.timestamp) AS last_ts
     FROM session_meta sm
     JOIN turns t ON t.session_id = sm.session_id
-    WHERE sm.project IS NOT NULL
+    WHERE sm.project IS NOT NULL AND sm.source = 'codex'
     GROUP BY sm.project
   `,
     )
@@ -462,6 +480,7 @@ export function queryCodexProjects() {
     project: string
     session_count: number
     turn_count: number
+    cost: number
     last_ts: number
   }>
 
@@ -469,6 +488,7 @@ export function queryCodexProjects() {
     project: r.project,
     sessionCount: r.session_count,
     turnCount: r.turn_count,
+    cost: r.cost,
     lastActive: localDateStr(r.last_ts),
   }))
 }

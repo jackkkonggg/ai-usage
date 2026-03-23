@@ -52,7 +52,7 @@ export interface ProjectStat {
   project: string
   displayName: string
   sessionCount: number
-  messageCount: number
+  cost: number
   lastActive: string
 }
 

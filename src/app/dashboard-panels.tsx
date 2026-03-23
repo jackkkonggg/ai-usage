@@ -53,14 +53,14 @@ export function HourlyPanel({ hourly }: { hourly: HourlyEntry[] }) {
 }
 
 export function ProjectsPanel({ projects }: { projects: ProjectStat[] }) {
-  const maxMsgs = projects[0]?.messageCount || 1
+  const maxCost = projects[0]?.cost || 1
 
   return (
     <div style={panelStyle}>
       <div style={{ ...sectionHeader, marginBottom: 22 }}>By Project</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {projects.slice(0, 8).map((p) => {
-          const pct = (p.messageCount / maxMsgs) * 100
+          const pct = (p.cost / maxCost) * 100
           return (
             <div key={p.project}>
               <div
@@ -94,7 +94,7 @@ export function ProjectsPanel({ projects }: { projects: ProjectStat[] }) {
                 <span
                   style={{ fontSize: 13, fontFamily: C.mono, color: C.amber, fontWeight: 600 }}
                 >
-                  {fmtTokens(p.messageCount)}
+                  {fmt$(p.cost)}
                 </span>
               </div>
               <div

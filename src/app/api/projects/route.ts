@@ -1,22 +1,26 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { getHistory } from '@/lib/stats-cache'
-import { queryCodexProjects, getGlmSessionIdsFromDb, getKnownSessionIds, forceSync } from '@/lib/db'
+import {
+  queryCodexProjects,
+  queryProjectCosts,
+  getGlmSessionIdsFromDb,
+  getKnownSessionIds,
+  forceSync,
+} from '@/lib/db'
 import { localDateStr } from '@/lib/format'
 import { basename } from 'path'
 
 export const dynamic = 'force-dynamic'
 
+interface ProjectGroup {
+  sessionCount: number
+  cost: number
+  lastTs: number
+}
+
 export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('force') === 'true') forceSync()
-  const grouped: Record<
-    string,
-    {
-      sessionCount: number
-      messageCount: number
-      turnCount: number
-      lastTs: number
-    }
-  > = {}
+  const grouped: Record<string, ProjectGroup> = {}
 
   // Claude projects from history.jsonl
   const entries = getHistory()
@@ -29,26 +33,27 @@ export async function GET(req: NextRequest) {
     if (!knownSessions.has(e.sessionId)) continue
     const proj = e.project || 'unknown'
     if (!grouped[proj]) {
-      grouped[proj] = { sessionCount: 0, messageCount: 0, turnCount: 0, lastTs: 0 }
+      grouped[proj] = { sessionCount: 0, cost: 0, lastTs: 0 }
       claudeSessions[proj] = new Set()
     }
     claudeSessions[proj].add(e.sessionId)
-    grouped[proj].messageCount++
     if (e.timestamp > grouped[proj].lastTs) grouped[proj].lastTs = e.timestamp
   }
 
-  // Finalize Claude session counts
+  // Finalize Claude session counts and costs
+  const costMap = queryProjectCosts(claudeSessions)
   for (const [proj, sessions] of Object.entries(claudeSessions)) {
     grouped[proj].sessionCount = sessions.size
+    grouped[proj].cost = costMap.get(proj) ?? 0
   }
 
   // Codex projects from session_meta
   for (const p of queryCodexProjects()) {
     if (!grouped[p.project]) {
-      grouped[p.project] = { sessionCount: 0, messageCount: 0, turnCount: 0, lastTs: 0 }
+      grouped[p.project] = { sessionCount: 0, cost: 0, lastTs: 0 }
     }
     grouped[p.project].sessionCount += p.sessionCount
-    grouped[p.project].turnCount += p.turnCount
+    grouped[p.project].cost += p.cost
     const ts = new Date(p.lastActive).getTime()
     if (ts > grouped[p.project].lastTs) grouped[p.project].lastTs = ts
   }
@@ -58,10 +63,10 @@ export async function GET(req: NextRequest) {
       project,
       displayName: basename(project) || 'Unknown',
       sessionCount: v.sessionCount,
-      messageCount: v.messageCount || v.turnCount,
+      cost: v.cost,
       lastActive: localDateStr(v.lastTs),
     }))
-    .sort((a, b) => b.messageCount - a.messageCount)
+    .sort((a, b) => b.cost - a.cost)
 
   return NextResponse.json(result)
 }

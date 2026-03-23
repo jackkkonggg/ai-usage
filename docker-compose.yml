@@ -29,8 +29,13 @@ services:
         source: ${HOME}/.codex/sessions
         target: /app/.codex/sessions
         read_only: true
-      # Read-write: SQLite database cache
       - type: bind
-        source: ./.cache
-        target: /app/.cache
+        source: ${HOME}/.codex/archived_sessions
+        target: /app/.codex/archived_sessions
+        read_only: true
+      # Read-write: SQLite database cache (isolated from local dev)
+      - ai-usage-cache:/app/.cache
     restart: unless-stopped
+
+volumes:
+  ai-usage-cache:

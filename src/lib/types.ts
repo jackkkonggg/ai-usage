@@ -93,6 +93,45 @@ export interface DayDetail {
   sources: SourceSplit[]
 }
 
+// ─── Snapshot Types ─────────────────────────────────────────────────────────
+
+export interface RateLimitBucket {
+  utilization: number
+  resetsAt: string
+}
+
+export interface ExtraUsage {
+  isEnabled: boolean
+  monthlyLimit: number | null
+  usedCredits: number | null
+  utilization: number | null
+}
+
+export interface RateLimits {
+  fiveHour: RateLimitBucket | null
+  sevenDay: RateLimitBucket | null
+  sevenDaySonnet: RateLimitBucket | null
+  sevenDayOpus: RateLimitBucket | null
+  extraUsage: ExtraUsage | null
+}
+
+export interface Snapshot {
+  date: string
+  cost: number
+  tokens: number
+  sessions: number
+  turns: number
+  cacheHitRate: number | null
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  models: ModelStat[]
+  sources: SourceSplit[]
+  hourly: HourlyEntry[]
+  rateLimits: RateLimits | null
+}
+
 // ─── Session Detail Types ────────────────────────────────────────────────────
 
 export interface ToolCall {
